@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025 Mapped</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exifr/7.1.3/lite.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-gradient: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.8) 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-light: 0 8px 32px rgba(31, 38, 135, 0.37);
+            --shadow-heavy: 0 20px 60px rgba(0, 0, 0, 0.3);
+            --text-primary: #1a1a2e;
+            --text-secondary: #6b7280;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #ec4899;
+            --accent-orange: #f59e0b;
+            --success-green: #10b981;
+            --error-red: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 1;
+            width: 100vw;
+            height: 100vh;
+            max-width: 428px;
+            margin: 0 auto;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            box-shadow: var(--shadow-heavy);
+        }
+
+        .home-menu {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .menu-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+
+        .menu-button:hover::before {
+            transform: translateX(100%);
+        }
+
+        .menu-button:hover {
+            transform: scale(1.02);
+            box-shadow: inset 0 0 100px rgba(255,255,255,0.1);
+        }
+
+        .menu-icon {
+            font-size: 3.5rem;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .map-button { background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); }
+        .stats-button { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .share-button { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .settings-button { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+
+        .section {
+            height: 100vh;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+            background: var(--card-gradient);
+            backdrop-filter: blur(20px);
+        }
+
+        .section.active {
+            display: block;
+            animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 2px;
+        }
+
+        .back-button {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: var(--shadow-light);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .back-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover::before {
+            width: 100px;
+            height: 100px;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(239, 68, 68, 0.4);
+        }
+
+        .loading-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: var(--card-gradient);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+
+        .loading-screen.active {
+            display: flex;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .loading-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .progress-container {
+            position: relative;
+            margin: 30px 0;
+        }
+
+        .progress-ring {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+
+        .progress-ring svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .progress-ring-bg {
+            fill: none;
+            stroke: rgba(255,255,255,0.2);
+            stroke-width: 8;
+        }
+
+        .progress-ring-fill {
+            fill: none;
+            stroke: url(#progressGradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314;
+            stroke-dashoffset: 314;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .loading-status {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 20px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-input-button {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            padding: 20px 40px;
+            border-radius: 30px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-light);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-input-button::before {
+            content: '📸';
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+        }
+
+        .file-input-button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 50px rgba(59, 130, 246, 0.4);
+        }
+
+        .file-input-button:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        #map {
+            height: 50vh;
+            border-radius: 20px;
+            margin: 20px 0;
+            box-shadow: var(--shadow-light);
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 100px;
+            right: 30px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .map-control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-light);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+
+        .map-control-btn:hover {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.2);
+        }
+
+        .stats-container {
+            display: grid;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-light);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            color: var(--text-primary);
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .share-container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .share-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+        }
+
+        .share-preview {
+            width: 100%;
+            max-width: 320px;
+            height: 320px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 25px;
+            margin: 30px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-light);
+        }
+
+        .share-preview canvas {
+            border-radius: 25px;
+        }
+
+        .share-button {
+            background: linear-gradient(135deg, var(--accent-pink), var(--accent-orange));
+            color: white;
+            border: none;
+            padding: 18px 36px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-light);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .share-button::before {
+            content: '🚀';
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+        }
+
+        .share-button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 50px rgba(236, 72, 153, 0.4);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 15px;
+            font-weight: 500;
+            z-index: 10000;
+            transform: translateX(400px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-light);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-red);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .notification.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-green);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .journey-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .mini-stat {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 20px 15px;
+            border-radius: 15px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+        }
+
+        .mini-stat:hover {
+            transform: translateY(-2px);
+        }
+
+        .mini-stat-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .mini-stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .mini-stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: var(--glass-bg);
+            border-radius: 15px;
+            backdrop-filter: blur(20px);
+        }
+
+        .photo-thumbnail {
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 2px solid var(--glass-border);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .photo-thumbnail:hover {
+            transform: scale(1.1);
+            border-color: var(--accent-blue);
+        }
+
+        .map-info {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .map-info h3 {
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .map-info p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            animation: float-particle 20s linear infinite;
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-10vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        @media (max-width: 428px) {
+            .app-container {
+                border-radius: 0;
+                width: 100vw;
+                height: 100vh;
+                border: none;
+            }
+            
+            .section {
+                padding: 15px;
+            }
+            
+            #map {
+                height: 40vh;
+            }
+            
+            .map-controls {
+                top: 80px;
+                right: 15px;
+            }
+        }
+
+        .path-animation {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawPath 3s ease-out forwards;
+        }
+
+        @keyframes drawPath {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-particles"></div>
+    
+    <div class="app-container">
+        <!-- Home Menu -->
+        <div class="home-menu" id="homeMenu">
+            <button class="menu-button map-button" onclick="showSection('map')">
+                <div class="menu-icon">🗺️</div>
+                <div>Explore Map</div>
+            </button>
+            <button class="menu-button stats-button" onclick="showSection('statistics')">
+                <div class="menu-icon">📊</div>
+                <div>Journey Stats</div>
+            </button>
+            <button class="menu-button share-button" onclick="showSection('share')">
+                <div class="menu-icon">✨</div>
+                <div>Share Story</div>
+            </button>
+            <button class="menu-button settings-button" onclick="showSection('settings')">
+                <div class="menu-icon">⚙️</div>
+                <div>Settings</div>
+            </button>
+        </div>
+
+        <!-- Loading Screen -->
+        <div class="loading-screen" id="loadingScreen">
+            <div class="loading-title">Mapping Your Journey ✨</div>
+            <div class="progress-container">
+                <div class="progress-ring">
+                    <svg>
+                        <defs>
+                            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#3b82f6" />
+                                <stop offset="100%" style="stop-color:#8b5cf6" />
+                            </linearGradient>
+                        </defs>
+                        <circle class="progress-ring-bg" cx="60" cy="60" r="50"></circle>
+                        <circle class="progress-ring-fill" cx="60" cy="60" r="50" id="progressRing"></circle>
+                    </svg>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+            </div>
+            <div class="loading-status" id="loadingStatus">Analyzing your memories...</div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="section" id="mapSection">
+            <div class="section-header">
+                <h1 class="section-title">Your Journey</h1>
+                <button class="back-button" onclick="showHome()">← Back</button>
+            </div>
+            
+            <div class="map-info">
+                <h3>🎯 Upload Your 2024 Photos</h3>
+                <p>Select all your photos from 2024 and we'll extract location data to map your incredible journey. Only photos with GPS data will be used.</p>
+            </div>
+            
+            <div class="file-input-wrapper">
+                <input type="file" id="photoInput" class="file-input" multiple accept="image/*">
+                <button class="file-input-button" onclick="document.getElementById('photoInput').click()">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Select Photos
+                </button>
+            </div>
+
+            <div class="journey-stats" id="quickStats" style="display: none;">
+                <div class="mini-stat">
+                    <div class="mini-stat-icon">📍</div>
+                    <div class="mini-stat-value" id="locationCount">0</div>
+                    <div class="mini-stat-label">Locations</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-icon">🛣️</div>
+                    <div class="mini-stat-value" id="distanceCount">0 km</div>
+                    <div class="mini-stat-label">Traveled</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-icon">📸</div>
+                    <div class="mini-stat-value" id="photoCount">0</div>
+                    <div class="mini-stat-label">Photos</div>
+                </div>
+            </div>
+
+            <div id="map"></div>
+            
+            <div class="map-controls">
+                <button class="map-control-btn" id="centerBtn" onclick="centerMap()" title="Center on journey">📍</button>
+                <button class="map-control-btn" id="zoomOutBtn" onclick="zoomToFit()" title="View full journey">🔍</button>
+                <button class="map-control-btn" onclick="toggleMapStyle()" title="Toggle map style">🎨</button>
+            </div>
+
+            <div class="photo-grid" id="photoGrid" style="display: none;"></div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="section" id="statisticsSection">
+            <div class="section-header">
+                <h1 class="section-title">Journey Analytics</h1>
+                <button class="back-button" onclick="showHome()">← Back</button>
+            </div>
+            
+            <div class="stats-container" id="statsContainer">
+                <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">📈</div>
+                    <h3 style="margin-bottom: 10px;">No Data Yet</h3>
+                    <p>Upload your photos in the Map section to see detailed statistics about your 2024 journey!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Share Section -->
+        <div class="section" id="shareSection">
+            <div class="section-header">
+                <h1 class="section-title">Share Journey</h1>
+                <button class="back-button" onclick="showHome()">← Back</button>
+            </div>
+            
+            <div class="share-container">
+                <div class="share-title">My 2025 Mapped</div>
+                <div class="share-preview" id="sharePreview">
+                    <div style="font-size: 4rem; margin-bottom: 20px;">🗺️</div>
+                    <div>Your journey map will appear here!</div>
+                    <div style="font-size: 0.9rem; margin-top: 10px; opacity: 0.7;">Upload photos first</div>
+                </div>
+                <button class="share-button" onclick="shareJourney()">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Share My Journey
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="section" id="settingsSection">
+            <div class="section-header">
+                <h1 class="section-title">Settings</h1>
+                <button class="back-button" onclick="showHome()">← Back</button>
+            </div>
+            
+            <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                <div style="font-size: 4rem; margin-bottom: 30px;">⚙️</div>
+                <h3 style="color: var(--text-primary); margin-bottom: 15px;">Coming Soon!</h3>
+                <p style="line-height: 1.6;">Future updates will include privacy settings, export options, and customization features.</p>
+                
+                <div style="margin-top: 40px; padding: 20px; background: var(--glass-bg); border-radius: 15px; backdrop-filter: blur(20px);">
+                    <h4 style="color: var(--text-primary); margin-bottom: 10px;">🔒 Privacy First</h4>
+                    <p style="font-size: 0.9rem;">All photo processing happens locally in your browser. No photos are uploaded to our servers.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced global variables
+        let map = null;
+        let locations = [];
+        let photoTimestamps = [];
+        let totalDistance = 0;
+        let processedPhotos = [];
+        let markers = [];
+        let currentPath = null;
+        let mapStyle = 0;
+        let animationFrame = null;
+        
+        // Map style configurations
+        const mapStyles = [
+            {
+                name: 'Classic',
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '© OpenStreetMap contributors'
+            },
+            {
+                name: 'Satellite',
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: 'Esri, DigitalGlobe, GeoEye'
+            },
+            {
+                name: 'Dark',
+                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                attribution: '© OpenStreetMap © CartoDB'
+            }
+        ];
+
+        // Initialize floating particles
+        function createFloatingParticles() {
+            const container = document.querySelector('.floating-particles');
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.animationDelay = Math.random() * 20 + 's';
+                    particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                    container.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        particle.remove();
+                    }, 25000);
+                }, i * 100);
+            }
+            
+            // Recreate particles periodically
+            setTimeout(createFloatingParticles, 25000);
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('photoInput').addEventListener('change', handlePhotoSelection);
+            createFloatingParticles();
+            
+            // Add some entrance animations
+            gsap.from('.menu-button', {
+                duration: 0.8,
+                y: 50,
+                opacity: 0,
+                stagger: 0.1,
+                ease: "back.out(1.7)"
+            });
+        });
+
+        function showSection(sectionName) {
+            // Hide home menu with animation
+            gsap.to('#homeMenu', {
+                duration: 0.3,
+                opacity: 0,
+                scale: 0.9,
+                onComplete: () => {
+                    document.getElementById('homeMenu').style.display = 'none';
+                }
+            });
+
+            // Show target section
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            setTimeout(() => {
+                const targetSection = document.getElementById(sectionName + 'Section');
+                targetSection.classList.add('active');
+                
+                // Initialize map when map section is shown
+                if (sectionName === 'map' && !map) {
+                    setTimeout(initializeMap, 200);
+                }
+                
+                // Animate section entrance
+                gsap.from(targetSection.children, {
+                    duration: 0.6,
+                    y: 30,
+                    opacity: 0,
+                    stagger: 0.1,
+                    ease: "power2.out"
+                });
+            }, 300);
+        }
+
+        function showHome() {
+            // Hide current section
+            document.querySelectorAll('.section').forEach(section => {
+                gsap.to(section, {
+                    duration: 0.3,
+                    opacity: 0,
+                    y: -20,
+                    onComplete: () => section.classList.remove('active')
+                });
+            });
+            
+            // Show home menu
+            setTimeout(() => {
+                document.getElementById('homeMenu').style.display = 'grid';
+                gsap.fromTo('#homeMenu', 
+                    { opacity: 0, scale: 0.9 },
+                    { duration: 0.4, opacity: 1, scale: 1, ease: "back.out(1.7)" }
+                );
+            }, 300);
+        }
+
+        function initializeMap() {
+            if (!map) {
+                map = L.map('map', {
+                    zoomControl: false,
+                    scrollWheelZoom: true,
+                    touchZoom: true,
+                    doubleClickZoom: true
+                }).setView([40.7128, -74.0060], 2);
+                
+                L.tileLayer(mapStyles[mapStyle].url, {
+                    attribution: mapStyles[mapStyle].attribution,
+                    maxZoom: 19
+                }).addTo(map);
+                
+                // Add custom zoom control
+                L.control.zoom({
+                    position: 'bottomleft'
+                }).addTo(map);
+            }
+        }
+
+        function toggleMapStyle() {
+            if (!map) return;
+            
+            mapStyle = (mapStyle + 1) % mapStyles.length;
+            
+            // Remove current tile layer
+            map.eachLayer((layer) => {
+                if (layer instanceof L.TileLayer) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            // Add new tile layer
+            L.tileLayer(mapStyles[mapStyle].url, {
+                attribution: mapStyles[mapStyle].attribution,
+                maxZoom: 19
+            }).addTo(map);
+            
+            showNotification(`Switched to ${mapStyles[mapStyle].name} view`, 'success');
+        }
+
+        async function handlePhotoSelection(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            showLoading();
+            
+            try {
+                await processPhotos(files);
+                if (locations.length > 0) {
+                    showNotification(`Successfully processed ${locations.length} photos with location data!`, 'success');
+                    hideLoading();
+                    await plotLocationsOnMap();
+                    updateQuickStats();
+                    updateStatistics();
+                    updatePhotoGrid();
+                    generateSharePreview();
+                } else {
+                    hideLoading();
+                    showNotification('No photos with location data found. Make sure location services were enabled when taking photos.', 'error');
+                }
+            } catch (error) {
+                console.error('Error processing photos:', error);
+                showNotification('Error processing photos. Please try again.', 'error');
+                hideLoading();
+            }
+        }
+
+        async function processPhotos(files) {
+            locations = [];
+            photoTimestamps = [];
+            processedPhotos = [];
+            totalDistance = 0;
+            
+            let processedCount = 0;
+            const oneMile = 1609.34; // meters
+            let lastLocation = null;
+            let validPhotos = 0;
+
+            updateProgress(0, `Scanning ${files.length} photos for location data...`);
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                try {
+                    // Extract EXIF data
+                    const exifData = await exifr.parse(file, {
+                        gps: true,
+                        exif: true,
+                        ifd0: true,
+                        pick: ['GPS', 'DateTimeOriginal', 'CreateDate', 'DateTime', 'latitude', 'longitude']
+                    });
+                    
+                    if (exifData && (exifData.latitude || exifData.GPS?.latitude) && (exifData.longitude || exifData.GPS?.longitude)) {
+                        const location = {
+                            lat: exifData.latitude || exifData.GPS.latitude,
+                            lng: exifData.longitude || exifData.GPS.longitude
+                        };
+
+                        // Validate coordinates
+                        if (Math.abs(location.lat) <= 90 && Math.abs(location.lng) <= 180) {
+                            // Get photo timestamp
+                            const timestamp = exifData.DateTimeOriginal || exifData.CreateDate || exifData.DateTime || new Date(file.lastModified);
+                            
+                            // Filter for 2024 photos
+                            const photoDate = timestamp instanceof Date ? timestamp : new Date(timestamp);
+                            if (photoDate.getFullYear() === 2024) {
+                                validPhotos++;
+                                
+                                // Check distance from last location
+                                if (lastLocation) {
+                                    const distance = calculateDistance(lastLocation.lat, lastLocation.lng, location.lat, location.lng);
+                                    if (distance > oneMile) {
+                                        locations.push(location);
+                                        photoTimestamps.push(photoDate);
+                                        processedPhotos.push({
+                                            file: file,
+                                            location: location,
+                                            timestamp: photoDate,
+                                            url: URL.createObjectURL(file)
+                                        });
+                                        totalDistance += distance;
+                                        lastLocation = location;
+                                    }
+                                } else {
+                                    locations.push(location);
+                                    photoTimestamps.push(photoDate);
+                                    processedPhotos.push({
+                                        file: file,
+                                        location: location,
+                                        timestamp: photoDate,
+                                        url: URL.createObjectURL(file)
+                                    });
+                                    lastLocation = location;
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Could not process photo:', file.name, error);
+                }
+
+                processedCount++;
+                const progress = (processedCount / files.length) * 100;
+                updateProgress(progress, `Processed ${processedCount} of ${files.length} photos • Found ${validPhotos} from 2024`);
+            }
+
+            // Sort by timestamp
+            const combined = locations.map((loc, index) => ({
+                location: loc,
+                timestamp: photoTimestamps[index],
+                photo: processedPhotos[index]
+            }));
+            
+            combined.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            locations = combined.map(item => item.location);
+            photoTimestamps = combined.map(item => item.timestamp);
+            processedPhotos = combined.map(item => item.photo);
+            
+            updateProgress(100, `Found ${locations.length} unique locations from your 2024 journey!`);
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c;
+        }
+
+        async function plotLocationsOnMap() {
+            if (!map || locations.length === 0) return;
+
+            // Clear existing markers and path
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            if (currentPath) map.removeLayer(currentPath);
+
+            // Custom marker icons
+            const startIcon = L.divIcon({
+                html: '🚀',
+                className: 'custom-marker',
+                iconSize: [30, 30]
+            });
+            
+            const endIcon = L.divIcon({
+                html: '🏁',
+                className: 'custom-marker',
+                iconSize: [30, 30]
+            });
+            
+            const regularIcon = L.divIcon({
+                html: '📍',
+                className: 'custom-marker',
+                iconSize: [25, 25]
+            });
+
+            // Add animated path first
+            if (locations.length > 1) {
+                const pathCoords = locations.map(loc => [loc.lat, loc.lng]);
+                currentPath = L.polyline(pathCoords, {
+                    color: '#3b82f6',
+                    weight: 4,
+                    opacity: 0.8,
+                    smoothFactor: 1,
+                    className: 'path-animation'
+                }).addTo(map);
+            }
+
+            // Add markers with animation delay
+            for (let i = 0; i < locations.length; i++) {
+                setTimeout(() => {
+                    const location = locations[i];
+                    let icon = regularIcon;
+                    
+                    if (i === 0) icon = startIcon;
+                    else if (i === locations.length - 1) icon = endIcon;
+                    
+                    const marker = L.marker([location.lat, location.lng], { icon }).addTo(map);
+                    markers.push(marker);
+                    
+                    // Add popup with photo and info
+                    if (processedPhotos[i]) {
+                        const timestamp = new Date(photoTimestamps[i]).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                        
+                        marker.bindPopup(`
+                            <div style="text-align: center; min-width: 200px;">
+                                <img src="${processedPhotos[i].url}" style="width: 150px; height: 100px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;">
+                                <div style="font-weight: 600; color: #1a1a2e;">${timestamp}</div>
+                                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Stop ${i + 1} of ${locations.length}</div>
+                            </div>
+                        `);
+                    }
+                    
+                    // Animate marker appearance
+                    const markerElement = marker.getElement();
+                    if (markerElement) {
+                        gsap.from(markerElement, {
+                            duration: 0.5,
+                            scale: 0,
+                            ease: "back.out(2.7)"
+                        });
+                    }
+                }, i * 100);
+            }
+
+            // Fit map to show all locations after a delay
+            setTimeout(() => {
+                zoomToFit();
+            }, locations.length * 100 + 500);
+        }
+
+        function centerMap() {
+            if (locations.length > 0) {
+                const lastLocation = locations[locations.length - 1];
+                map.flyTo([lastLocation.lat, lastLocation.lng], 12, {
+                    duration: 1.5,
+                    easeLinearity: 0.25
+                });
+            }
+        }
+
+        function zoomToFit() {
+            if (locations.length > 0 && map) {
+                const group = new L.featureGroup(markers);
+                map.flyToBounds(group.getBounds().pad(0.1), {
+                    duration: 1.5,
+                    easeLinearity: 0.25
+                });
+            }
+        }
+
+        function updateQuickStats() {
+            document.getElementById('quickStats').style.display = 'grid';
+            
+            const locationCount = document.getElementById('locationCount');
+            const distanceCount = document.getElementById('distanceCount');
+            const photoCount = document.getElementById('photoCount');
+            
+            // Animate counting up
+            gsap.to({ val: 0 }, {
+                duration: 1.5,
+                val: locations.length,
+                onUpdate: function() {
+                    locationCount.textContent = Math.round(this.targets()[0].val);
+                }
+            });
+            
+            gsap.to({ val: 0 }, {
+                duration: 1.5,
+                val: totalDistance / 1000,
+                onUpdate: function() {
+                    distanceCount.textContent = Math.round(this.targets()[0].val) + ' km';
+                }
+            });
+            
+            gsap.to({ val: 0 }, {
+                duration: 1.5,
+                val: processedPhotos.length,
+                onUpdate: function() {
+                    photoCount.textContent = Math.round(this.targets()[0].val);
+                }
+            });
+        }
+
+        function updateStatistics() {
+            const stats = calculateStatistics();
+            const container = document.getElementById('statsContainer');
+            
+            container.innerHTML = '';
+            
+            Object.entries(stats).forEach(([key, value], index) => {
+                const statCard = document.createElement('div');
+                statCard.className = 'stat-card';
+                statCard.style.opacity = '0';
+                statCard.style.transform = 'translateY(20px)';
+                
+                statCard.innerHTML = `
+                    <div class="stat-label">${key}</div>
+                    <div class="stat-value">${value}</div>
+                `;
+                container.appendChild(statCard);
+                
+                // Animate card appearance
+                gsap.to(statCard, {
+                    duration: 0.5,
+                    opacity: 1,
+                    y: 0,
+                    delay: index * 0.1,
+                    ease: "power2.out"
+                });
+            });
+        }
+
+        function calculateStatistics() {
+            if (locations.length === 0) return {};
+
+            const stats = {};
+            
+            // Total distance traveled
+            stats['🛣️ Total Distance Traveled'] = `${(totalDistance / 1000).toFixed(1)} kilometers`;
+            
+            // Total unique locations
+            stats['📍 Unique Locations Visited'] = `${locations.length} places`;
+            
+            // Time span
+            if (photoTimestamps.length > 1) {
+                const startDate = new Date(Math.min(...photoTimestamps.map(t => new Date(t).getTime())));
+                const endDate = new Date(Math.max(...photoTimestamps.map(t => new Date(t).getTime())));
+                const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+                stats['📅 Journey Duration'] = `${daysDiff} days`;
+                
+                const startMonth = startDate.toLocaleDateString('en-US', { month: 'long' });
+                const endMonth = endDate.toLocaleDateString('en-US', { month: 'long' });
+                stats['🗓️ Time Period'] = `${startMonth} - ${endMonth} 2024`;
+            }
+
+            // Average distance between stops
+            if (locations.length > 1) {
+                const avgDistance = totalDistance / (locations.length - 1);
+                stats['⚡ Average Distance Between Stops'] = `${(avgDistance / 1000).toFixed(1)} km`;
+            }
+
+            // Most active month
+            const monthCounts = {};
+            photoTimestamps.forEach(timestamp => {
+                const month = new Date(timestamp).toLocaleDateString('en-US', { month: 'long' });
+                monthCounts[month] = (monthCounts[month] || 0) + 1;
+            });
+            const mostActiveMonth = Object.entries(monthCounts).reduce((a, b) => a[1] > b[1] ? a : b);
+            if (mostActiveMonth) {
+                stats['🔥 Most Active Month'] = `${mostActiveMonth[0]} (${mostActiveMonth[1]} locations)`;
+            }
+
+            // Furthest points
+            if (locations.length > 1) {
+                let maxDistance = 0;
+                let furthestPair = null;
+                
+                for (let i = 0; i < locations.length; i++) {
+                    for (let j = i + 1; j < locations.length; j++) {
+                        const distance = calculateDistance(
+                            locations[i].lat, locations[i].lng,
+                            locations[j].lat, locations[j].lng
+                        );
+                        if (distance > maxDistance) {
+                            maxDistance = distance;
+                            furthestPair = [i, j];
+                        }
+                    }
+                }
+                
+                if (furthestPair) {
+                    stats['🌍 Furthest Distance Apart'] = `${(maxDistance / 1000).toFixed(1)} km`;
+                }
+            }
+
+            // Adventure level based on distance and locations
+            let adventureLevel = 'Explorer';
+            if (totalDistance > 50000) adventureLevel = 'Globetrotter';
+            else if (totalDistance > 20000) adventureLevel = 'Adventurer';
+            else if (totalDistance > 5000) adventureLevel = 'Wanderer';
+            
+            stats['🏆 Adventure Level'] = adventureLevel;
+
+            return stats;
+        }
+
+        function updatePhotoGrid() {
+            const photoGrid = document.getElementById('photoGrid');
+            photoGrid.innerHTML = '';
+            photoGrid.style.display = 'grid';
+            
+            processedPhotos.slice(0, 12).forEach((photo, index) => {
+                const img = document.createElement('img');
+                img.src = photo.url;
+                img.className = 'photo-thumbnail';
+                img.style.opacity = '0';
+                img.style.transform = 'scale(0.8)';
+                
+                img.onclick = () => {
+                    if (markers[index]) {
+                        map.flyTo([photo.location.lat, photo.location.lng], 15);
+                        markers[index].openPopup();
+                    }
+                };
+                
+                photoGrid.appendChild(img);
+                
+                // Animate thumbnail appearance
+                gsap.to(img, {
+                    duration: 0.4,
+                    opacity: 1,
+                    scale: 1,
+                    delay: index * 0.05,
+                    ease: "back.out(1.7)"
+                });
+            });
+        }
+
+        async function generateSharePreview() {
+            if (locations.length === 0) return;
+            
+            const preview = document.getElementById('sharePreview');
+            preview.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">My 2024 Journey</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-blue);">${locations.length}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Places</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-purple);">${Math.round(totalDistance/1000)}km</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Traveled</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                        From ${new Date(Math.min(...photoTimestamps.map(t => new Date(t)))).toLocaleDateString('en-US', {month: 'short'})} 
+                        to ${new Date(Math.max(...photoTimestamps.map(t => new Date(t)))).toLocaleDateString('en-US', {month: 'short', year: 'numeric'})}
+                    </div>
+                    <div style="margin-top: 15px; font-size: 0.8rem; opacity: 0.7;">#2025Mapped</div>
+                </div>
+            `;
+        }
+
+        function shareJourney() {
+            if (locations.length === 0) {
+                showNotification('Please upload your photos first to share your journey!', 'error');
+                return;
+            }
+
+            const stats = calculateStatistics();
+            const shareText = `🗺️ My 2024 Journey Mapped! ✨
+
+📍 ${locations.length} unique places visited
+🛣️ ${Math.round(totalDistance/1000)}km traveled
+📅 From ${new Date(Math.min(...photoTimestamps.map(t => new Date(t)))).toLocaleDateString('en-US', {month: 'long'})} to ${new Date(Math.max(...photoTimestamps.map(t => new Date(t)))).toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}
+
+${Object.entries(stats).slice(0, 3).map(([key, value]) => `${key}: ${value}`).join('\n')}
+
+Discover your own journey at #2025Mapped`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'My 2025 Journey Mapped',
+                    text: shareText
+                }).then(() => {
+                    showNotification('Journey shared successfully! 🚀', 'success');
+                }).catch((error) => {
+                    if (error.name !== 'AbortError') {
+                        fallbackShare(shareText);
+                    }
+                });
+            } else {
+                fallbackShare(shareText);
+            }
+        }
+
+        function fallbackShare(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showNotification('Journey summary copied to clipboard! 📋', 'success');
+                }).catch(() => {
+                    showManualCopy(text);
+                });
+            } else {
+                showManualCopy(text);
+            }
+        }
+
+        function showManualCopy(text) {
+            // Create a temporary textarea for manual copying
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                showNotification('Journey summary ready to copy! Select the text and copy manually.', 'success');
+            } catch (err) {
+                showNotification('Please manually copy your journey summary.', 'error');
+            }
+            
+            document.body.removeChild(textarea);
+        }
+
+        // Utility functions
+        function showLoading() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            loadingScreen.classList.add('active');
+            
+            // Animate loading screen entrance
+            gsap.from(loadingScreen.children, {
+                duration: 0.6,
+                y: 30,
+                opacity: 0,
+                stagger: 0.1,
+                ease: "power2.out"
+            });
+        }
+
+        function hideLoading() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            gsap.to(loadingScreen, {
+                duration: 0.4,
+                opacity: 0,
+                onComplete: () => {
+                    loadingScreen.classList.remove('active');
+                    gsap.set(loadingScreen, { opacity: 1 });
+                }
+            });
+        }
+
+        function updateProgress(percent, status) {
+            const progressRing = document.getElementById('progressRing');
+            const progressText = document.getElementById('progressText');
+            const loadingStatus = document.getElementById('loadingStatus');
+            
+            const circumference = 2 * Math.PI * 50;
+            const offset = circumference - (percent / 100) * circumference;
+            
+            progressRing.style.strokeDashoffset = offset;
+            progressText.textContent = `${Math.round(percent)}%`;
+            loadingStatus.textContent = status;
+        }
+
+        function showNotification(message, type = 'success') {
+            // Remove existing notifications
+            document.querySelectorAll('.notification').forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Show notification
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            // Hide notification after 4 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 400);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
