@@ -1,0 +1,392 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f5f7;
+    min-height: 100vh;
+    color: #333;
+}
+
+/* Home Menu */
+.home-menu {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 100vh;
+    gap: 1px;
+    background: #ddd;
+}
+
+.home-menu.active {
+    display: grid;
+}
+
+.menu-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.menu-button:hover {
+    background: #f8f8f8;
+    transform: scale(0.98);
+}
+
+.menu-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+}
+
+.map-button { background: linear-gradient(135deg, #007AFF, #005CBF); color: white; }
+.stats-button { background: linear-gradient(135deg, #34C759, #248A3D); color: white; }
+.share-button { background: linear-gradient(135deg, #FF9500, #CC7700); color: white; }
+.about-button { background: linear-gradient(135deg, #8E8E93, #636366); color: white; }
+
+/* Sections */
+.app-section {
+    display: none;
+    min-height: 100vh;
+    padding: 20px;
+    background: white;
+}
+
+.app-section.active {
+    display: block;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.section-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+
+.back-button {
+    background: #007AFF;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.back-button:hover {
+    background: #005CBF;
+}
+
+/* Loading Screen */
+.loading-screen {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.loading-screen.active {
+    display: flex;
+}
+
+.loading-content {
+    text-align: center;
+    max-width: 300px;
+    width: 90%;
+}
+
+.loading-content h2 {
+    margin-bottom: 20px;
+    color: #1d1d1f;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e5e5e7;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007AFF, #005CBF);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.loading-status {
+    font-size: 14px;
+    color: #6e6e73;
+}
+
+/* Upload Area */
+.upload-area {
+    text-align: center;
+    padding: 40px 20px;
+    border: 2px dashed #c6c6c8;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.upload-button {
+    background: #007AFF;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.upload-button:hover {
+    background: #005CBF;
+}
+
+.upload-hint {
+    color: #6e6e73;
+    font-size: 14px;
+}
+
+/* Stats Summary */
+.stats-summary {
+    display: flex;
+    justify-content: space-around;
+    background: #f8f8f8;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6e6e73;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Map */
+#map {
+    height: 60vh;
+    border-radius: 12px;
+    border: 1px solid #d1d1d6;
+    margin-bottom: 15px;
+}
+
+.map-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.map-controls button {
+    background: #f2f2f7;
+    border: 1px solid #d1d1d6;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.map-controls button:hover {
+    background: #e5e5ea;
+}
+
+/* Statistics */
+.stats-container {
+    display: grid;
+    gap: 15px;
+}
+
+.stat-card {
+    background: #f8f8f8;
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 4px solid #007AFF;
+}
+
+.stat-card h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: #1d1d1f;
+}
+
+.stat-card .value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #007AFF;
+    margin-bottom: 5px;
+}
+
+.stat-card .description {
+    font-size: 14px;
+    color: #6e6e73;
+}
+
+/* Share */
+.share-container {
+    max-width: 400px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.share-preview {
+    background: #f8f8f8;
+    border: 1px solid #d1d1d6;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 20px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.share-button {
+    background: #34C759;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+}
+
+.share-button:hover:not(:disabled) {
+    background: #248A3D;
+}
+
+.share-button:disabled {
+    background: #c6c6c8;
+    cursor: not-allowed;
+}
+
+/* About */
+.about-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.about-content h3 {
+    margin: 25px 0 10px 0;
+    font-size: 18px;
+    color: #1d1d1f;
+}
+
+.about-content p {
+    line-height: 1.5;
+    color: #424245;
+    margin-bottom: 15px;
+}
+
+/* No Data State */
+.no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6e6e73;
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #1d1d1f;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 2000;
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification.error {
+    background: #FF3B30;
+}
+
+.notification.success {
+    background: #34C759;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .app-section {
+        padding: 15px;
+    }
+    
+    #map {
+        height: 50vh;
+    }
+    
+    .stats-summary {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+}
+
+/* Leaflet marker customization */
+.leaflet-marker-icon {
+    border-radius: 50%;
+}
+
+.leaflet-popup-content {
+    margin: 8px 12px;
+    font-size: 14px;
+}
+
+.leaflet-popup-content img {
+    max-width: 150px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
