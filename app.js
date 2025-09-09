@@ -476,3 +476,38 @@ ${stats.mostActiveMonth ? `🔥 Most active: ${stats.mostActiveMonth}` : ''}
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new PhotoJourneyApp();
 });
+
+// Global functions for HTML onclick handlers
+function showSection(sectionName) {
+    if (window.app) {
+        window.app.showSection(sectionName);
+    } else {
+        console.error('App not initialized yet');
+    }
+}
+
+function showHome() {
+    if (window.app) {
+        window.app.showHome();
+    } else {
+        console.error('App not initialized yet');
+    }
+}
+
+function centerMap() {
+    if (window.app) {
+        window.app.centerMap();
+    }
+}
+
+function fitBounds() {
+    if (window.app) {
+        window.app.fitBounds();
+    }
+}
+
+function shareJourney() {
+    if (window.app) {
+        window.app.shareJourney();
+    }
+}
