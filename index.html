@@ -16,19 +16,19 @@
 <body>
     <!-- Home Menu -->
     <div class="home-menu active" id="homeMenu">
-        <button class="menu-button map-button" onclick="app.showSection('map')">
+        <button class="menu-button map-button" onclick="showSection('map')">
             <div class="menu-icon">📍</div>
             <div>Map Photos</div>
         </button>
-        <button class="menu-button stats-button" onclick="app.showSection('stats')">
+        <button class="menu-button stats-button" onclick="showSection('stats')">
             <div class="menu-icon">📊</div>
             <div>Statistics</div>
         </button>
-        <button class="menu-button share-button" onclick="app.showSection('share')">
+        <button class="menu-button share-button" onclick="showSection('share')">
             <div class="menu-icon">📤</div>
             <div>Share</div>
         </button>
-        <button class="menu-button about-button" onclick="app.showSection('about')">
+        <button class="menu-button about-button" onclick="showSection('about')">
             <div class="menu-icon">ℹ️</div>
             <div>About</div>
         </button>
@@ -49,7 +49,7 @@
     <section class="app-section" id="mapSection">
         <header class="section-header">
             <h1>Your Photo Journey</h1>
-            <button class="back-button" onclick="app.showHome()">← Back</button>
+            <button class="back-button" onclick="showHome()">← Back</button>
         </header>
         
         <div class="upload-area">
@@ -87,7 +87,7 @@
     <section class="app-section" id="statsSection">
         <header class="section-header">
             <h1>Journey Statistics</h1>
-            <button class="back-button" onclick="app.showHome()">← Back</button>
+            <button class="back-button" onclick="showHome()">← Back</button>
         </header>
         
         <div class="stats-container" id="statsContainer">
@@ -101,7 +101,7 @@
     <section class="app-section" id="shareSection">
         <header class="section-header">
             <h1>Share Journey</h1>
-            <button class="back-button" onclick="app.showHome()">← Back</button>
+            <button class="back-button" onclick="showHome()">← Back</button>
         </header>
         
         <div class="share-container">
@@ -110,7 +110,7 @@
                     <p>Upload photos to generate a shareable summary</p>
                 </div>
             </div>
-            <button class="share-button" id="shareButton" onclick="app.shareJourney()" disabled>
+            <button class="share-button" id="shareButton" onclick="shareJourney()" disabled>
                 Share My Journey
             </button>
         </div>
@@ -120,7 +120,7 @@
     <section class="app-section" id="aboutSection">
         <header class="section-header">
             <h1>About 2025 Mapped</h1>
-            <button class="back-button" onclick="app.showHome()">← Back</button>
+            <button class="back-button" onclick="showHome()">← Back</button>
         </header>
         
         <div class="about-content">
