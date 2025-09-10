@@ -16,22 +16,28 @@ function showSection(sectionName) {
     console.log('Showing section:', sectionName);
     
     // Hide home menu
-    document.getElementById('homeMenu').classList.remove('active');
+    const homeMenu = document.getElementById('homeMenu');
+    homeMenu.classList.remove('active');
+    console.log('Home menu hidden');
     
     // Hide all sections
     document.querySelectorAll('.app-section').forEach(section => {
         section.classList.remove('active');
+        console.log('Section hidden:', section.id);
     });
     
     // Show target section
     const section = document.getElementById(sectionName + 'Section');
     if (section) {
         section.classList.add('active');
+        console.log('Section shown:', section.id);
         
         // Initialize map if needed
         if (sectionName === 'map' && !map) {
             setTimeout(initializeMap, 100);
         }
+    } else {
+        console.error('Section not found:', sectionName + 'Section');
     }
 }
 
@@ -41,10 +47,13 @@ function showHome() {
     // Hide all sections
     document.querySelectorAll('.app-section').forEach(section => {
         section.classList.remove('active');
+        console.log('Section hidden:', section.id);
     });
     
     // Show home menu
-    document.getElementById('homeMenu').classList.add('active');
+    const homeMenu = document.getElementById('homeMenu');
+    homeMenu.classList.add('active');
+    console.log('Home menu shown');
 }
 
 // Map functions
