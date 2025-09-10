@@ -92,6 +92,14 @@ async function handlePhotoUpload(event) {
     if (files.length === 0) return;
 
     console.log(`Processing ${files.length} files`);
+    
+    // Check if exifr library is available
+    if (typeof exifr === 'undefined') {
+        showNotification('EXIF library not loaded. Cannot process photos.', 'error');
+        console.error('exifr library not available');
+        return;
+    }
+    
     showLoading();
     
     try {
