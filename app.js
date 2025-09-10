@@ -117,37 +117,105 @@ async function processPhotos(files) {
     locations = [];
     photos = [];
     let processed = 0;
+    let foundWithGPS = 0;
 
     for (const file of files) {
         try {
             updateProgress((processed / files.length) * 100, `Processing ${processed + 1} of ${files.length}`);
             
-            const exif = await exifr.parse(file);
+            console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
             
+            // Parse EXIF with more options
+            const exif = await exifr.parse(file, {
+                gps: true,
+                exif: true,
+                ifd0: true,
+                iptc: false,
+                xmp: false,
+                icc: false,
+                pick: ['GPS', 'GPSLatitude', 'GPSLongitude', 'GPSLatitudeRef', 'GPSLongitudeRef', 
+                       'latitude', 'longitude', 'DateTimeOriginal', 'CreateDate', 'DateTime']
+            });
+            
+            console.log('EXIF data for', file.name, ':', exif);
+            
+            // Try multiple ways to get GPS coordinates
+            let lat = null, lng = null;
+            
+            // Method 1: Direct latitude/longitude
             if (exif && exif.latitude && exif.longitude) {
+                lat = exif.latitude;
+                lng = exif.longitude;
+                console.log('Found GPS via direct lat/lng:', lat, lng);
+            }
+            // Method 2: GPS object
+            else if (exif && exif.GPS) {
+                if (exif.GPS.latitude && exif.GPS.longitude) {
+                    lat = exif.GPS.latitude;
+                    lng = exif.GPS.longitude;
+                    console.log('Found GPS via GPS object:', lat, lng);
+                }
+                // Method 3: Manual GPS calculation
+                else if (exif.GPS.GPSLatitude && exif.GPS.GPSLongitude) {
+                    lat = convertDMSToDD(exif.GPS.GPSLatitude, exif.GPS.GPSLatitudeRef);
+                    lng = convertDMSToDD(exif.GPS.GPSLongitude, exif.GPS.GPSLongitudeRef);
+                    console.log('Found GPS via DMS conversion:', lat, lng);
+                }
+            }
+            
+            if (lat && lng && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+                foundWithGPS++;
+                console.log(`Valid GPS coordinates found: ${lat}, ${lng}`);
+                
                 const date = getPhotoDate(exif, file);
-                if (date && date.getFullYear() === 2024) {
+                console.log('Photo date:', date, 'Year:', date.getFullYear());
+                
+                // Check if from 2024 (or current year for testing)
+                const currentYear = new Date().getFullYear();
+                if (date && (date.getFullYear() === 2024 || date.getFullYear() === currentYear)) {
+                    console.log('Photo is from valid year, adding to collection');
+                    
                     const photoData = {
                         file: file,
-                        lat: exif.latitude,
-                        lng: exif.longitude,
+                        lat: lat,
+                        lng: lng,
                         date: date,
                         url: URL.createObjectURL(file)
                     };
                     
                     photos.push(photoData);
                     locations.push({ lat: photoData.lat, lng: photoData.lng, photo: photoData });
+                } else {
+                    console.log('Photo not from 2024/current year, skipping');
                 }
+            } else {
+                console.log('No valid GPS coordinates found for', file.name);
             }
+            
         } catch (error) {
             console.warn(`Could not process ${file.name}:`, error);
         }
         processed++;
     }
     
+    console.log(`Processing complete. Found ${foundWithGPS} photos with GPS data, ${photos.length} from valid year`);
+    
     // Sort by date
     photos.sort((a, b) => a.date - b.date);
-    updateProgress(100, `Found ${photos.length} photos with location data`);
+    updateProgress(100, `Found ${photos.length} photos with location data from ${foundWithGPS} total with GPS`);
+}
+
+// Convert DMS (Degrees, Minutes, Seconds) to Decimal Degrees
+function convertDMSToDD(dms, ref) {
+    if (!dms || !Array.isArray(dms) || dms.length !== 3) return null;
+    
+    let dd = dms[0] + dms[1]/60 + dms[2]/(60*60);
+    
+    if (ref === "S" || ref === "W") {
+        dd = dd * -1;
+    }
+    
+    return dd;
 }
 
 function getPhotoDate(exif, file) {
