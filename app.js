@@ -8,15 +8,6 @@ let photos = [];
 // Initialize when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
     console.log('App initialized');
-    
-    // Check if exifr library is loaded
-    if (typeof exifr === 'undefined') {
-        console.error('exifr library not loaded!');
-        showNotification('EXIF library failed to load. Photo processing may not work.', 'error');
-    } else {
-        console.log('exifr library loaded successfully');
-    }
-    
     document.getElementById('photoInput').addEventListener('change', handlePhotoUpload);
 });
 
@@ -129,7 +120,7 @@ async function handlePhotoUpload(event) {
     }
 }
 
-// Simplified photo processing to avoid exifr errors
+// Process photos and extract location data
 async function processPhotos(files) {
     locations = [];
     photos = [];
@@ -137,39 +128,65 @@ async function processPhotos(files) {
     let foundWithGPS = 0;
 
     for (const file of files) {
-        updateProgress((processed / files.length) * 100, `Processing ${processed + 1} of ${files.length}`);
-        console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
-        
         try {
-            // Try the simplest possible exifr call
-            const gpsData = await exifr.gps(file);
-            console.log('GPS data for', file.name, ':', gpsData);
+            updateProgress((processed / files.length) * 100, `Processing ${processed + 1} of ${files.length}`);
             
-            if (gpsData && gpsData.latitude && gpsData.longitude) {
-                foundWithGPS++;
-                console.log(`Valid GPS coordinates found: ${gpsData.latitude}, ${gpsData.longitude}`);
-                
-                // Get basic date info
-                let date;
-                try {
-                    const basicExif = await exifr.parse(file, ['DateTimeOriginal', 'DateTime', 'CreateDate']);
-                    date = getPhotoDate(basicExif, file);
-                } catch (dateError) {
-                    console.warn('Could not get date from EXIF, using file date');
-                    date = new Date(file.lastModified);
+            console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
+            
+            // Parse EXIF with more options
+            const exif = await exifr.parse(file, {
+                gps: true,
+                exif: true,
+                ifd0: true,
+                iptc: false,
+                xmp: false,
+                icc: false,
+                pick: ['GPS', 'GPSLatitude', 'GPSLongitude', 'GPSLatitudeRef', 'GPSLongitudeRef', 
+                       'latitude', 'longitude', 'DateTimeOriginal', 'CreateDate', 'DateTime']
+            });
+            
+            console.log('EXIF data for', file.name, ':', exif);
+            
+            // Try multiple ways to get GPS coordinates
+            let lat = null, lng = null;
+            
+            // Method 1: Direct latitude/longitude
+            if (exif && exif.latitude && exif.longitude) {
+                lat = exif.latitude;
+                lng = exif.longitude;
+                console.log('Found GPS via direct lat/lng:', lat, lng);
+            }
+            // Method 2: GPS object
+            else if (exif && exif.GPS) {
+                if (exif.GPS.latitude && exif.GPS.longitude) {
+                    lat = exif.GPS.latitude;
+                    lng = exif.GPS.longitude;
+                    console.log('Found GPS via GPS object:', lat, lng);
                 }
+                // Method 3: Manual GPS calculation
+                else if (exif.GPS.GPSLatitude && exif.GPS.GPSLongitude) {
+                    lat = convertDMSToDD(exif.GPS.GPSLatitude, exif.GPS.GPSLatitudeRef);
+                    lng = convertDMSToDD(exif.GPS.GPSLongitude, exif.GPS.GPSLongitudeRef);
+                    console.log('Found GPS via DMS conversion:', lat, lng);
+                }
+            }
+            
+            if (lat && lng && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+                foundWithGPS++;
+                console.log(`Valid GPS coordinates found: ${lat}, ${lng}`);
                 
+                const date = getPhotoDate(exif, file);
                 console.log('Photo date:', date, 'Year:', date.getFullYear());
                 
-                // Accept photos from 2024 or current year for testing
+                // Check if from 2025 (or current year for testing)
                 const currentYear = new Date().getFullYear();
-                if (date && (date.getFullYear() === 2024 || date.getFullYear() === currentYear)) {
+                if (date && (date.getFullYear() === 2025 || date.getFullYear() === currentYear)) {
                     console.log('Photo is from valid year, adding to collection');
                     
                     const photoData = {
                         file: file,
-                        lat: gpsData.latitude,
-                        lng: gpsData.longitude,
+                        lat: lat,
+                        lng: lng,
                         date: date,
                         url: URL.createObjectURL(file)
                     };
@@ -177,16 +194,15 @@ async function processPhotos(files) {
                     photos.push(photoData);
                     locations.push({ lat: photoData.lat, lng: photoData.lng, photo: photoData });
                 } else {
-                    console.log('Photo not from valid year, skipping');
+                    console.log('Photo not from 2024/current year, skipping');
                 }
             } else {
-                console.log('No GPS coordinates found for', file.name);
+                console.log('No valid GPS coordinates found for', file.name);
             }
             
         } catch (error) {
-            console.warn(`Could not process ${file.name}:`, error.message);
+            console.warn(`Could not process ${file.name}:`, error);
         }
-        
         processed++;
     }
     
@@ -197,15 +213,26 @@ async function processPhotos(files) {
     updateProgress(100, `Found ${photos.length} photos with location data from ${foundWithGPS} total with GPS`);
 }
 
+// Convert DMS (Degrees, Minutes, Seconds) to Decimal Degrees
+function convertDMSToDD(dms, ref) {
+    if (!dms || !Array.isArray(dms) || dms.length !== 3) return null;
+    
+    let dd = dms[0] + dms[1]/60 + dms[2]/(60*60);
+    
+    if (ref === "S" || ref === "W") {
+        dd = dd * -1;
+    }
+    
+    return dd;
+}
+
 function getPhotoDate(exif, file) {
-    if (exif) {
-        const dateFields = ['DateTimeOriginal', 'DateTime', 'CreateDate'];
-        
-        for (const field of dateFields) {
-            if (exif[field]) {
-                const date = new Date(exif[field]);
-                if (!isNaN(date.getTime())) return date;
-            }
+    const dateFields = ['DateTimeOriginal', 'DateTime', 'CreateDate'];
+    
+    for (const field of dateFields) {
+        if (exif[field]) {
+            const date = new Date(exif[field]);
+            if (!isNaN(date.getTime())) return date;
         }
     }
     
@@ -322,7 +349,7 @@ function updateShareSection() {
     
     preview.innerHTML = `
         <div style="text-align: center;">
-            <h3 style="margin-bottom: 15px;">My 2024 Journey</h3>
+            <h3 style="margin-bottom: 15px;">My 2025 Journey</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                 <div>
                     <div style="font-size: 24px; font-weight: bold; color: #007AFF;">${stats.totalPhotos}</div>
@@ -396,11 +423,11 @@ function shareJourney() {
     }
     
     const stats = calculateDetailedStats();
-    const shareText = `My 2024 Journey: ${stats.totalPhotos} photos from ${stats.totalLocations} locations, ${stats.totalDistance}km traveled!`;
+    const shareText = `My 2025 Journey: ${stats.totalPhotos} photos from ${stats.totalLocations} locations, ${stats.totalDistance}km traveled!`;
     
     if (navigator.share) {
         navigator.share({ 
-            title: '2024 Journey Mapped',
+            title: '2025 Journey Mapped',
             text: shareText 
         }).then(() => {
             showNotification('Shared successfully!', 'success');

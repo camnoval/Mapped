@@ -173,6 +173,16 @@ body {
 .upload-hint {
     color: #6e6e73;
     font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.date-info {
+    margin-top: 8px;
+}
+
+.date-info small {
+    color: #8e8e93;
+    font-size: 12px;
 }
 
 /* Stats Summary */
