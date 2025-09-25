@@ -1,51 +1,31 @@
-import { getStore } from "@netlify/blobs";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export async function handler(event) {
-  const store = getStore("photo-data"); // creates a blob store named "photo-data"
+  try {
+    const body = JSON.parse(event.body);
+    const { username, lat, long, date_taken } = body;
 
-  if (event.httpMethod === "POST") {
-    try {
-      const data = JSON.parse(event.body);
+    // Insert raw string blobs into Supabase for now
+    const { data, error } = await supabase
+      .from("user_photos")
+      .insert([{ username, lat, long, date_taken }]);
 
-      // Store new entry with timestamp as key
-      const key = `entry-${Date.now()}`;
-      await store.setJSON(key, data);
+    if (error) throw error;
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ message: "Saved successfully", id: key }),
-      };
-    } catch (err) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Invalid JSON", details: err.message }),
-      };
-    }
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, message: "Received!", data })
+    };
+  } catch (err) {
+    console.error("Upload error:", err.message);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ success: false, error: err.message })
+    };
   }
-
-  if (event.httpMethod === "GET") {
-    try {
-      const list = await store.list();
-      const all = [];
-      for (const item of list.blobs) {
-        const value = await store.get(item.key, { type: "json" });
-        all.push(value);
-      }
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify(all),
-      };
-    } catch (err) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Failed to fetch data" }),
-      };
-    }
-  }
-
-  return {
-    statusCode: 405,
-    body: JSON.stringify({ error: "Method Not Allowed" }),
-  };
 }
