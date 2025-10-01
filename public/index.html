@@ -4,143 +4,219 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2025 Mapped</title>
-    
-    <!-- External Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-    
-    <!-- App Styles and Scripts -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            color: #333;
+        }
+        
+        .username-input {
+            margin: 20px auto;
+            text-align: center;
+            max-width: 500px;
+        }
+        
+        .username-input input {
+            padding: 10px 15px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 250px;
+        }
+        
+        .username-input button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .username-input button:hover {
+            background: #0051D5;
+        }
+        
+        .stats {
+            background: white;
+            padding: 15px;
+            text-align: center;
+            color: #666;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        #map {
+            width: 100%;
+            height: calc(100vh - 200px);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #d32f2f;
+        }
+    </style>
 </head>
 <body>
-    <!-- Home Menu -->
-    <div class="home-menu active" id="homeMenu">
-        <button class="menu-button map-button" onclick="showSection('map')">
-            <div class="menu-icon">📍</div>
-            <div>Map Photos</div>
-        </button>
-        <button class="menu-button stats-button" onclick="showSection('stats')">
-            <div class="menu-icon">📊</div>
-            <div>Statistics</div>
-        </button>
-        <button class="menu-button share-button" onclick="showSection('share')">
-            <div class="menu-icon">📤</div>
-            <div>Share</div>
-        </button>
-        <button class="menu-button about-button" onclick="showSection('about')">
-            <div class="menu-icon">ℹ️</div>
-            <div>About</div>
-        </button>
+    <div class="header">
+        <h1>2025 Mapped</h1>
+        <p>Your year in locations</p>
     </div>
-
-    <!-- Loading Screen -->
-    <div class="loading-screen" id="loadingScreen">
-        <div class="loading-content">
-            <h2>Processing Photos...</h2>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <div class="loading-status" id="loadingStatus">Starting...</div>
-        </div>
+    
+    <div class="username-input">
+        <input type="text" id="usernameInput" placeholder="Enter your username">
+        <button onclick="loadUserData()">Load Map</button>
     </div>
+    
+    <div id="stats" class="stats" style="display: none;"></div>
+    <div id="loading" class="loading" style="display: none;">Loading your photos...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="map"></div>
 
-    <!-- Map Section -->
-    <section class="app-section" id="mapSection">
-        <header class="section-header">
-            <h1>Your Photo Journey</h1>
-            <button class="back-button" onclick="showHome()">← Back</button>
-        </header>
+    <script>
+        // Initialize Supabase client
+        const SUPABASE_URL = 'https://umnkevrjpbupeuqgdtnu.supabase.co'; // Replace with your Supabase URL
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtbmtldnJqcGJ1cGV1cWdkdG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3NDE1ODcsImV4cCI6MjA3NDMxNzU4N30.zYLQ3ugqbV_ewZ6JZT0OzXL-pgdc0u_q7D0UYK1oySY'; // Replace with your anon key
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        <div class="upload-area">
-            <input type="file" id="photoInput" multiple accept="image/*" style="display: none;">
-            <button class="upload-button" onclick="document.getElementById('photoInput').click()">
-                Select Photos from 2025
-            </button>
-            <p class="upload-hint"> It's quicker to choose all photos - we'll automatically filter for 2025 photos with GPS data</p>
-            <div class="date-info">
-                <small>Looking for photos from January 1, 2025 to present</small>
-            </div>
-        </div>
-
-        <div class="stats-summary" id="statsSummary" style="display: none;">
-            <div class="stat-item">
-                <span class="stat-value" id="photoCount">0</span>
-                <span class="stat-label">Photos</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value" id="locationCount">0</span>
-                <span class="stat-label">Locations</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value" id="distanceCount">0 km</span>
-                <span class="stat-label">Distance</span>
-            </div>
-        </div>
-
-        <div id="map" style="display: none;"></div>
+        let map;
+        let markers = [];
         
-        <div class="map-controls" id="mapControls" style="display: none;">
-            <button onclick="centerMap()">Center</button>
-            <button onclick="fitBounds()">Fit All</button>
-        </div>
-    </section>
-
-    <!-- Statistics Section -->
-    <section class="app-section" id="statsSection">
-        <header class="section-header">
-            <h1>Journey Statistics</h1>
-            <button class="back-button" onclick="showHome()">← Back</button>
-        </header>
+        // Initialize map
+        function initMap() {
+            if (!map) {
+                map = L.map('map').setView([40.44, -79.96], 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+            }
+        }
         
-        <div class="stats-container" id="statsContainer">
-            <div class="no-data">
-                <p>Upload photos first to see your journey statistics</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Share Section -->
-    <section class="app-section" id="shareSection">
-        <header class="section-header">
-            <h1>Share Journey</h1>
-            <button class="back-button" onclick="showHome()">← Back</button>
-        </header>
+        // Clear existing markers
+        function clearMarkers() {
+            markers.forEach(marker => marker.remove());
+            markers = [];
+        }
         
-        <div class="share-container">
-            <div class="share-preview" id="sharePreview">
-                <div class="no-data">
-                    <p>Upload photos to generate a shareable summary</p>
-                </div>
-            </div>
-            <button class="share-button" id="shareButton" onclick="shareJourney()" disabled>
-                Share My Journey
-            </button>
-        </div>
-    </section>
-
-    <!-- About Section -->
-    <section class="app-section" id="aboutSection">
-        <header class="section-header">
-            <h1>About 2025 Mapped</h1>
-            <button class="back-button" onclick="showHome()">← Back</button>
-        </header>
-        
-        <div class="about-content">
-            <h3>Privacy First</h3>
-            <p>All photo processing happens locally in your browser. No photos are uploaded to servers.</p>
+        // Load user data from Supabase
+        async function loadUserData() {
+            const username = document.getElementById('usernameInput').value.trim().toLowerCase();
             
-            <h3>How It Works</h3>
-            <p>Select photos from 2024 that have location data (GPS coordinates). The app will extract this data and plot your journey on a map.</p>
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
             
-            <h3>Requirements</h3>
-            <p>Photos must have been taken with location services enabled on your device to include GPS coordinates.</p>
-        </div>
-    </section>
-
-    <!-- Notifications -->
-    <div class="notification" id="notification"></div>
-
-    <script src="app.js"></script>
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            
+            try {
+                // Fetch photos from Supabase
+                const { data, error } = await supabase
+                    .from('user_photos')
+                    .select('*')
+                    .eq('username', username)
+                    .order('date_taken', { ascending: false });
+                
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    document.getElementById('error').textContent = 'No photos found for this username';
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('loading').style.display = 'none';
+                    return;
+                }
+                
+                // Initialize map
+                initMap();
+                clearMarkers();
+                
+                // Add markers for each photo
+                const bounds = [];
+                data.forEach(photo => {
+                    const lat = photo.latitude;
+                    const lng = photo.longitude;
+                    const date = new Date(photo.date_taken);
+                    
+                    // Create marker
+                    const marker = L.marker([lat, lng]).addTo(map);
+                    
+                    // Format date
+                    const dateStr = date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                    });
+                    
+                    // Popup content
+                    marker.bindPopup(`
+                        <strong>${dateStr}</strong><br>
+                        ${lat.toFixed(4)}, ${lng.toFixed(4)}
+                    `);
+                    
+                    markers.push(marker);
+                    bounds.push([lat, lng]);
+                });
+                
+                // Fit map to show all markers
+                if (bounds.length > 0) {
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+                
+                // Show stats
+                const dateRange = data.length > 0 ? 
+                    `${new Date(data[data.length - 1].date_taken).toLocaleDateString()} - ${new Date(data[0].date_taken).toLocaleDateString()}` 
+                    : '';
+                document.getElementById('stats').innerHTML = `
+                    <strong>${data.length}</strong> photos • ${dateRange}
+                `;
+                document.getElementById('stats').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (err) {
+                console.error('Error loading data:', err);
+                document.getElementById('error').textContent = 'Error loading photos: ' + err.message;
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        // Initialize map on load
+        initMap();
+    </script>
 </body>
 </html>
