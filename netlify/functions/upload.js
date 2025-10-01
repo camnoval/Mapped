@@ -49,18 +49,21 @@ export async function handler(event) {
     const longitudes = Long.trim().split('\n').filter(v => v);
     const dateTaken = DateTaken.trim().split('\n').filter(v => v);
 
-    // Validate all arrays have same length
-    const count = latitudes.length;
-    if (longitudes.length !== count || dateTaken.length !== count) {
+    // Use the minimum count (some photos may not have location data)
+    const count = Math.min(latitudes.length, longitudes.length, dateTaken.length);
+    
+    if (count === 0) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({ 
           success: false, 
-          error: `Mismatched data lengths: ${latitudes.length} lats, ${longitudes.length} longs, ${dateTaken.length} dates` 
+          error: "No photos with valid location data found" 
         }),
       };
     }
+
+    console.log(`Found ${latitudes.length} lats, ${longitudes.length} longs, ${dateTaken.length} dates - processing ${count} photos`);
 
     console.log(`Processing ${count} photos for user: ${Username}`);
 
@@ -75,7 +78,10 @@ export async function handler(event) {
         
         // Parse iOS date format: "Sep 30, 2025 at 7:21 PM"
         const dateStr = dateTaken[i];
-        const date = new Date(dateStr);
+        
+        // Remove " at " to make it parseable
+        const cleanDateStr = dateStr.replace(' at ', ' ');
+        const date = new Date(cleanDateStr);
         
         if (isNaN(lat) || isNaN(lng) || isNaN(date.getTime())) {
           errors.push({ 
