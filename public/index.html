@@ -149,9 +149,10 @@
         <button onclick="resetAnimation()">⏹ Reset</button>
         <label>Speed: 
             <select id="speedSelect" onchange="updateSpeed()">
-                <option value="50">Slow</option>
-                <option value="20" selected>Normal</option>
-                <option value="5">Fast</option>
+                <option value="2000">Very Slow</option>
+                <option value="1000" selected>Slow</option>
+                <option value="500">Normal</option>
+                <option value="200">Fast</option>
             </select>
         </label>
     </div>
@@ -171,7 +172,9 @@
         let isAnimating = false;
         let animationIndex = 0;
         let animationInterval = null;
-        let animationSpeed = 20; // milliseconds between steps
+        let animationSpeed = 1000; // milliseconds per point
+        let interpolationSteps = 50; // number of steps to interpolate between points
+        let currentInterpolationStep = 0;
         
         // Initialize map
         function initMap() {
