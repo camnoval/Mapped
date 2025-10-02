@@ -84,6 +84,47 @@
             padding: 40px;
             color: #d32f2f;
         }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 1000;
+        }
+        
+        .controls button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: none;
+            background: #007AFF;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .controls button:hover {
+            background: #0051D5;
+        }
+        
+        .controls select {
+            padding: 8px;
+            margin: 0 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .walker-icon {
+            font-size: 32px;
+            text-align: center;
+            line-height: 1;
+        }
     </style>
 </head>
 <body>
@@ -101,6 +142,19 @@
     <div id="loading" class="loading" style="display: none;">Loading your photos...</div>
     <div id="error" class="error" style="display: none;"></div>
     <div id="map"></div>
+    
+    <div class="controls" id="controls">
+        <button onclick="playAnimation()">▶ Play</button>
+        <button onclick="pauseAnimation()">⏸ Pause</button>
+        <button onclick="resetAnimation()">⏹ Reset</button>
+        <label>Speed: 
+            <select id="speedSelect" onchange="updateSpeed()">
+                <option value="50">Slow</option>
+                <option value="20" selected>Normal</option>
+                <option value="5">Fast</option>
+            </select>
+        </label>
+    </div>
 
     <script>
         // Initialize Supabase client
@@ -111,6 +165,13 @@
         
         let map;
         let markers = [];
+        let allPhotos = [];
+        let animationPath = null;
+        let walkerMarker = null;
+        let isAnimating = false;
+        let animationIndex = 0;
+        let animationInterval = null;
+        let animationSpeed = 20; // milliseconds between steps
         
         // Initialize map
         function initMap() {
@@ -164,15 +225,20 @@
                 initMap();
                 clearMarkers();
                 
-                // Add markers for each photo
+                // Store photos for animation
+                allPhotos = data.reverse(); // Reverse to get chronological order (oldest first)
+                
+                // Add all markers (hidden initially for animation)
                 const bounds = [];
-                data.forEach(photo => {
+                allPhotos.forEach((photo, idx) => {
                     const lat = photo.latitude;
                     const lng = photo.longitude;
                     const date = new Date(photo.date_taken);
                     
                     // Create marker
-                    const marker = L.marker([lat, lng]).addTo(map);
+                    const marker = L.marker([lat, lng], {
+                        opacity: 0.3 // Show faded initially
+                    }).addTo(map);
                     
                     // Format date
                     const dateStr = date.toLocaleDateString('en-US', { 
@@ -186,7 +252,8 @@
                     // Popup content
                     marker.bindPopup(`
                         <strong>${dateStr}</strong><br>
-                        ${lat.toFixed(4)}, ${lng.toFixed(4)}
+                        ${lat.toFixed(4)}, ${lng.toFixed(4)}<br>
+                        Photo ${idx + 1} of ${allPhotos.length}
                     `);
                     
                     markers.push(marker);
@@ -197,6 +264,9 @@
                 if (bounds.length > 0) {
                     map.fitBounds(bounds, { padding: [50, 50] });
                 }
+                
+                // Show controls
+                document.getElementById('controls').style.display = 'block';
                 
                 // Show stats
                 const dateRange = data.length > 0 ? 
@@ -213,6 +283,108 @@
                 document.getElementById('error').textContent = 'Error loading photos: ' + err.message;
                 document.getElementById('error').style.display = 'block';
                 document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        // Animation functions
+        function playAnimation() {
+            if (allPhotos.length === 0) return;
+            
+            if (!isAnimating) {
+                isAnimating = true;
+                
+                // Create walker icon if it doesn't exist
+                if (!walkerMarker) {
+                    const walkerIcon = L.divIcon({
+                        html: '<div class="walker-icon">🚶</div>',
+                        className: '',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    });
+                    
+                    const startPhoto = allPhotos[0];
+                    walkerMarker = L.marker([startPhoto.latitude, startPhoto.longitude], {
+                        icon: walkerIcon,
+                        zIndexOffset: 1000
+                    }).addTo(map);
+                }
+                
+                // Start animation loop
+                animationInterval = setInterval(animateStep, animationSpeed);
+            }
+        }
+        
+        function pauseAnimation() {
+            isAnimating = false;
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+        }
+        
+        function resetAnimation() {
+            pauseAnimation();
+            animationIndex = 0;
+            
+            // Clear path
+            if (animationPath) {
+                animationPath.remove();
+                animationPath = null;
+            }
+            
+            // Reset walker
+            if (walkerMarker && allPhotos.length > 0) {
+                const startPhoto = allPhotos[0];
+                walkerMarker.setLatLng([startPhoto.latitude, startPhoto.longitude]);
+            }
+            
+            // Reset marker opacity
+            markers.forEach(marker => marker.setOpacity(0.3));
+        }
+        
+        function animateStep() {
+            if (animationIndex >= allPhotos.length) {
+                pauseAnimation();
+                return;
+            }
+            
+            const currentPhoto = allPhotos[animationIndex];
+            const currentLatLng = [currentPhoto.latitude, currentPhoto.longitude];
+            
+            // Highlight current marker
+            markers[animationIndex].setOpacity(1);
+            
+            // Move walker
+            if (walkerMarker) {
+                walkerMarker.setLatLng(currentLatLng);
+            }
+            
+            // Draw path line
+            if (animationIndex > 0) {
+                const pathCoords = allPhotos.slice(0, animationIndex + 1).map(p => [p.latitude, p.longitude]);
+                
+                if (animationPath) {
+                    animationPath.setLatLngs(pathCoords);
+                } else {
+                    animationPath = L.polyline(pathCoords, {
+                        color: '#007AFF',
+                        weight: 3,
+                        opacity: 0.7
+                    }).addTo(map);
+                }
+            }
+            
+            animationIndex++;
+        }
+        
+        function updateSpeed() {
+            const select = document.getElementById('speedSelect');
+            animationSpeed = parseInt(select.value);
+            
+            // Restart interval if currently playing
+            if (isAnimating) {
+                clearInterval(animationInterval);
+                animationInterval = setInterval(animateStep, animationSpeed);
             }
         }
         
